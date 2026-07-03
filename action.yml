@@ -1,0 +1,83 @@
+name: "Export Glyph Workspace as Website"
+description: >-
+  Install Glyph and export a folder of markdown files as a linked static
+  website (one HTML page per file, wikilinks resolved, images copied, Mermaid
+  rendered). Ideal for publishing a notes workspace to GitHub Pages.
+author: glyph-md
+branding:
+  icon: book-open
+  color: purple
+
+inputs:
+  workspace:
+    description: Path to the markdown workspace folder to export.
+    required: true
+  output:
+    description: Directory the generated site is written to.
+    required: false
+    default: site
+  version:
+    description: >-
+      Glyph release to install, e.g. "v0.15.0". Defaults to the latest
+      release. The website export needs Glyph 0.15.0 or newer.
+    required: false
+    default: latest
+  timeout-seconds:
+    description: Fail the export if it has not finished after this many seconds.
+    required: false
+    default: "600"
+
+outputs:
+  path:
+    description: The output directory containing the generated site.
+    value: ${{ steps.export.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Glyph
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${RUNNER_OS}" != "Linux" ]; then
+          echo "::error::glyph-md/export-website-action only supports Linux runners (needs apt + xvfb)."
+          exit 1
+        fi
+        ARCH="$(dpkg --print-architecture)"
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          API_URL="https://api.github.com/repos/hamidfzm/glyph/releases/latest"
+        else
+          API_URL="https://api.github.com/repos/hamidfzm/glyph/releases/tags/${{ inputs.version }}"
+        fi
+        DEB_URL="$(curl -fsSL "${API_URL}" | jq -r --arg arch "_${ARCH}.deb" \
+          '.assets[] | select(.name | endswith($arch)) | .browser_download_url')"
+        if [ -z "${DEB_URL}" ] || [ "${DEB_URL}" = "null" ]; then
+          echo "::error::No ${ARCH} .deb asset found for Glyph ${{ inputs.version }}."
+          exit 1
+        fi
+        echo "Installing ${DEB_URL}"
+        curl -fsSL -o /tmp/glyph.deb "${DEB_URL}"
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq /tmp/glyph.deb xvfb
+        glyph --version || true
+
+    - name: Export website
+      id: export
+      shell: bash
+      env:
+        # WebKitGTK quirks on headless/virtual displays.
+        WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+        WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+      run: |
+        set -euo pipefail
+        WORKSPACE="${{ inputs.workspace }}"
+        OUTPUT="${{ inputs.output }}"
+        if [ ! -d "${WORKSPACE}" ]; then
+          echo "::error::Workspace folder not found: ${WORKSPACE}"
+          exit 1
+        fi
+        timeout "${{ inputs.timeout-seconds }}" \
+          xvfb-run --auto-servernum glyph "${WORKSPACE}" --export-website "${OUTPUT}"
+        echo "path=${OUTPUT}" >> "${GITHUB_OUTPUT}"
+        echo "Exported site:"
+        find "${OUTPUT}" -type f | head -50

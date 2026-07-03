@@ -1,0 +1,39 @@
+name: Smoke test
+
+# Manual only: the export flag ships in Glyph 0.15.0, so this cannot gate
+# pushes until that release is the default install.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Glyph release to test against
+        default: latest
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Create a fixture workspace
+        run: |
+          mkdir -p fixture/guide
+          printf '# Fixture\n\nSee [[intro]].\n' > fixture/README.md
+          printf '# Intro\n\n```mermaid\ngraph TD; A-->B;\n```\n' > fixture/guide/intro.md
+
+      - uses: ./
+        id: export
+        with:
+          workspace: fixture
+          output: out
+          version: ${{ inputs.version }}
+
+      - name: Verify output
+        run: |
+          set -euo pipefail
+          test -f out/index.html
+          test -f out/guide/intro.html
+          test -f out/style.css
+          grep -q 'guide/intro.html' out/index.html
+          grep -q '<svg' out/guide/intro.html
+          echo "Site verified: $(find out -type f | wc -l) files"
