@@ -19,6 +19,7 @@ jobs:
         run: |
           mkdir -p fixture/guide
           printf '# Fixture\n\nSee [[intro]].\n' > fixture/README.md
+          # shellcheck disable=SC2016 # the backticks are a literal mermaid fence
           printf '# Intro\n\n```mermaid\ngraph TD; A-->B;\n```\n' > fixture/guide/intro.md
 
       - uses: ./
