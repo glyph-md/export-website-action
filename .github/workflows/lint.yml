@@ -1,0 +1,27 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Validates every workflow: expression syntax, input references, runner
+      # labels, and shellcheck on run: blocks.
+      - name: Run actionlint
+        run: |
+          set -euo pipefail
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+
+      # actionlint covers workflows only; sanity-check the composite action's
+      # metadata separately.
+      - name: Validate action.yml
+        run: |
+          set -euo pipefail
+          python3 -c "import yaml, sys; a = yaml.safe_load(open('action.yml')); assert a['runs']['using'] == 'composite', 'not a composite action'; assert set(a['inputs']) == {'workspace', 'output', 'version', 'timeout-seconds'}, a['inputs'].keys(); print('action.yml OK')"
