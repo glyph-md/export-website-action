@@ -1,6 +1,6 @@
 name: Smoke test
 
-# Manual only: the export flag ships in Glyph 0.15.0, so this cannot gate
+# Manual only: the export flag ships in releases after v0.15.2, so this cannot gate
 # pushes until that release is the default install.
 on:
   workflow_dispatch:

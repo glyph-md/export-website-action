@@ -1,0 +1,54 @@
+name: E2E (glyph samples)
+
+# End-to-end proof: install a real Glyph release, export the glyph repo's
+# samples/ workspace with the headless CLI, verify the generated site, and
+# publish it as a run artifact. Manual for now: the website export ships in
+# the first release cut from main after v0.15.2; once that exists this can
+# also run on a schedule.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Glyph release to test against
+        default: latest
+
+jobs:
+  export-samples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fetch the glyph samples workspace
+        uses: actions/checkout@v5
+        with:
+          repository: hamidfzm/glyph
+          path: glyph
+          sparse-checkout: samples
+
+      - uses: ./
+        id: export
+        with:
+          workspace: glyph/samples
+          output: site
+          version: ${{ inputs.version }}
+
+      - name: Verify the generated site
+        run: |
+          set -euo pipefail
+          # samples/ has a root Index.md, so it owns index.html and the README
+          # exports as a normal page.
+          test -f site/index.html
+          test -f site/README.html
+          test -f site/style.css
+          test -f site/site.js
+          test -f site/Notes/Cooking.html
+          grep -q 'glyph-site-nav' site/index.html
+          grep -q '<svg' site/Flowchart.html
+          grep -q 'glyph-site-outline' site/README.html
+          echo "Site verified: $(find site -type f | wc -l) files"
+
+      - name: Publish the site as a run artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: glyph-samples-site
+          path: site
