@@ -19,7 +19,7 @@ inputs:
   version:
     description: >-
       Glyph release to install, e.g. "v0.16.0". Defaults to the latest
-      release. The website export needs a release newer than v0.15.2.
+      release. The website export needs Glyph v0.16.0 or newer.
     required: false
     default: latest
   timeout-seconds:

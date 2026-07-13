@@ -1,8 +1,11 @@
 name: Smoke test
 
-# Manual only: the export flag ships in releases after v0.15.2, so this cannot gate
-# pushes until that release is the default install.
+# Gates every change to the action with a real install + export against the
+# latest Glyph release (v0.16.0 shipped the export flag).
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
     inputs:
       version:

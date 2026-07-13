@@ -4,7 +4,7 @@ Export a folder of markdown files as a linked static website using [Glyph](https
 
 The export renders every markdown file with Glyph's viewer pipeline (GitHub Flavored Markdown, math, alerts, syntax highlighting, Mermaid diagrams as inline SVG), resolves `[[wikilinks]]` and relative links between pages, copies referenced images, and emits a shared stylesheet, cross-page navigation, and an `index.html` (your root `README.md`, or a generated page list).
 
-Under the hood it runs `glyph <workspace> --export-website <output>` headless under `xvfb`, so it needs a Linux runner. Requires a Glyph release newer than v0.15.2, the first ones to ship the `--export-website` flag (the default installs the latest release).
+Under the hood it runs `glyph <workspace> --export-website <output>` headless under `xvfb`, so it needs a Linux runner. Requires Glyph v0.16.0 or newer (the default installs the latest release).
 
 ## Usage
 
