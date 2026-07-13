@@ -30,7 +30,7 @@ jobs:
         with:
           workspace: fixture
           output: out
-          version: ${{ inputs.version }}
+          version: ${{ inputs.version || 'latest' }}
 
       - name: Verify output
         run: |

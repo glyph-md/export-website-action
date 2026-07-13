@@ -30,7 +30,7 @@ jobs:
         with:
           workspace: glyph/samples
           output: site
-          version: ${{ inputs.version }}
+          version: ${{ inputs.version || 'latest' }}
 
       - name: Verify the generated site
         run: |

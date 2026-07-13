@@ -44,15 +44,18 @@ runs:
           exit 1
         fi
         ARCH="$(dpkg --print-architecture)"
-        if [ "${{ inputs.version }}" = "latest" ]; then
+        # An empty version (e.g. a caller forwarding absent workflow inputs)
+        # means the same as "latest"; a bare tag 404s the releases API.
+        VERSION="${{ inputs.version }}"
+        if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
           API_URL="https://api.github.com/repos/hamidfzm/glyph/releases/latest"
         else
-          API_URL="https://api.github.com/repos/hamidfzm/glyph/releases/tags/${{ inputs.version }}"
+          API_URL="https://api.github.com/repos/hamidfzm/glyph/releases/tags/${VERSION}"
         fi
         DEB_URL="$(curl -fsSL "${API_URL}" | jq -r --arg arch "_${ARCH}.deb" \
           '.assets[] | select(.name | endswith($arch)) | .browser_download_url')"
         if [ -z "${DEB_URL}" ] || [ "${DEB_URL}" = "null" ]; then
-          echo "::error::No ${ARCH} .deb asset found for Glyph ${{ inputs.version }}."
+          echo "::error::No ${ARCH} .deb asset found for Glyph ${VERSION:-latest}."
           exit 1
         fi
         echo "Installing ${DEB_URL}"
