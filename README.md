@@ -6,6 +6,8 @@ The export renders every markdown file with Glyph's viewer pipeline (GitHub Flav
 
 Under the hood it runs `glyph <workspace> --export-website <output>` headless under `xvfb`, so it needs a Linux runner. Requires Glyph v0.16.0 or newer (the default installs the latest release).
 
+**Live demo**: [glyph-md.github.io/export-website-action](https://glyph-md.github.io/export-website-action/) is Glyph's `samples/` workspace, exported by this action's [E2E workflow](.github/workflows/e2e-samples.yml) with the released CLI and deployed to GitHub Pages.
+
 ## Usage
 
 ```yaml
