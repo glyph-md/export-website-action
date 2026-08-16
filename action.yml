@@ -19,7 +19,8 @@ inputs:
   version:
     description: >-
       Glyph release to install, e.g. "v0.16.0". Defaults to the latest
-      release. The website export needs Glyph v0.16.0 or newer.
+      release. The website export needs Glyph v0.16.0 or newer; the action
+      picks the right export flag for whichever release it installs.
     required: false
     default: latest
   timeout-seconds:
@@ -79,8 +80,27 @@ runs:
           echo "::error::Workspace folder not found: ${WORKSPACE}"
           exit 1
         fi
+
+        # The flag was renamed: `--export-website <dir>` became
+        # `--export site --out <dir>` when the CLI grew the other export
+        # formats. v0.20.0 is the last release that spells it the old way, and
+        # `version:` can pin one, so the installed binary decides rather than
+        # this action assuming whatever is newest.
+        VERSION_LINE="$(glyph --version 2>/dev/null || true)"
+        GLYPH_VERSION="${VERSION_LINE##* }"
+        if [ -z "${GLYPH_VERSION}" ]; then
+          echo "::error::Could not read the installed Glyph version from \`glyph --version\`."
+          exit 1
+        fi
+        if [ "$(printf '%s\n' "0.20.0" "${GLYPH_VERSION}" | sort -V | tail -n1)" = "0.20.0" ]; then
+          EXPORT_ARGS=(--export-website "${OUTPUT}")
+        else
+          EXPORT_ARGS=(--export site --out "${OUTPUT}")
+        fi
+        echo "Glyph ${GLYPH_VERSION}: glyph ${WORKSPACE} ${EXPORT_ARGS[*]}"
+
         timeout "${{ inputs.timeout-seconds }}" \
-          xvfb-run --auto-servernum glyph "${WORKSPACE}" --export-website "${OUTPUT}"
+          xvfb-run --auto-servernum glyph "${WORKSPACE}" "${EXPORT_ARGS[@]}"
         echo "path=${OUTPUT}" >> "${GITHUB_OUTPUT}"
         echo "Exported site:"
         find "${OUTPUT}" -type f | head -50
