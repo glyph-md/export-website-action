@@ -26,6 +26,18 @@ Under the hood it runs the Glyph CLI headless under `xvfb`, so it needs a Linux 
 | `version` | `latest` | Glyph release to install, e.g. `v0.16.0` |
 | `timeout-seconds` | `600` | Fail the export if it has not finished in time |
 
+### Versioning
+
+Every version is published as a [GitHub release](https://github.com/glyph-md/export-website-action/releases), so there is an immutable ref to pin and release notes to read. Pick how much movement you want:
+
+```yaml
+- uses: glyph-md/export-website-action@v1        # rolling: latest v1.x
+- uses: glyph-md/export-website-action@v1.1.0    # exact version
+- uses: glyph-md/export-website-action@<sha>     # immutable, supply-chain safe
+```
+
+`v1` is an alias the release workflow repoints at each new v1.x, so it moves under you by design. Pin the exact version or the commit SHA if that matters to you.
+
 ### Outputs
 
 | Output | Description |

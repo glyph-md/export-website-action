@@ -1,0 +1,46 @@
+name: Release
+
+# Publishes a version of this action. Consumers need something immutable to
+# pin and a changelog to read; before this the only reference was a `v1` tag
+# moved by hand, which is neither.
+#
+# Push a semver tag to release:
+#
+#   git tag v1.1.0 && git push origin v1.1.0
+#
+# The job creates the GitHub release from that tag and repoints the major
+# alias (v1) at the same commit, so `@v1` keeps working for callers who want
+# rolling updates while `@v1.1.0` pins an exact version.
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "$TAG" --title "$TAG" --generate-notes
+
+      - name: Move the major alias
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          MAJOR="${TAG%%.*}"
+          # Force, because the alias is meant to move; the exact tag stays put.
+          git tag -f "$MAJOR" "$TAG"
+          git push -f origin "refs/tags/$MAJOR"
+          echo "$MAJOR now points at $TAG"
