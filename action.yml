@@ -18,9 +18,10 @@ inputs:
     default: site
   version:
     description: >-
-      Glyph release to install, e.g. "v0.16.0". Defaults to the latest
-      release. The website export needs Glyph v0.16.0 or newer; the action
-      picks the right export flag for whichever release it installs.
+      Glyph release to install, e.g. "v0.23.0". Defaults to the latest
+      release. This action calls `glyph export --format site`, so it needs a
+      release carrying that subcommand; pin an action tag matching the Glyph
+      release you install rather than pairing an old binary with a new action.
     required: false
     default: latest
   timeout-seconds:
@@ -81,26 +82,23 @@ runs:
           exit 1
         fi
 
-        # The flag was renamed: `--export-website <dir>` became
-        # `--export site --out <dir>` when the CLI grew the other export
-        # formats. v0.20.0 is the last release that spells it the old way, and
-        # `version:` can pin one, so the installed binary decides rather than
-        # this action assuming whatever is newest.
+        # One spelling, the current one. This action's tag tracks the Glyph
+        # release it targets, so it does not branch on what it found. It does
+        # check that the binary has the subcommand: without that check the
+        # export below would treat "export" as a path to open and sit there
+        # until the timeout expired, which reads as a hang rather than as the
+        # version mismatch it is.
         VERSION_LINE="$(glyph --version 2>/dev/null || true)"
         GLYPH_VERSION="${VERSION_LINE##* }"
-        if [ -z "${GLYPH_VERSION}" ]; then
-          echo "::error::Could not read the installed Glyph version from \`glyph --version\`."
+        if ! glyph --help 2>/dev/null | grep -q "glyph export"; then
+          echo "::error::Glyph ${GLYPH_VERSION:-(unknown version)} has no \`glyph export\` subcommand. Pin an action tag matching the Glyph release you install, or leave \`version\` at latest."
           exit 1
         fi
-        if [ "$(printf '%s\n' "0.20.0" "${GLYPH_VERSION}" | sort -V | tail -n1)" = "0.20.0" ]; then
-          EXPORT_ARGS=(--export-website "${OUTPUT}")
-        else
-          EXPORT_ARGS=(--export site --out "${OUTPUT}")
-        fi
-        echo "Glyph ${GLYPH_VERSION}: glyph ${WORKSPACE} ${EXPORT_ARGS[*]}"
+        echo "Glyph ${GLYPH_VERSION}: exporting ${WORKSPACE} to ${OUTPUT}"
 
         timeout "${{ inputs.timeout-seconds }}" \
-          xvfb-run --auto-servernum glyph "${WORKSPACE}" "${EXPORT_ARGS[@]}"
+          xvfb-run --auto-servernum \
+          glyph export "${WORKSPACE}" --format site --out "${OUTPUT}"
         echo "path=${OUTPUT}" >> "${GITHUB_OUTPUT}"
         echo "Exported site:"
         find "${OUTPUT}" -type f | head -50
