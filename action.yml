@@ -18,12 +18,13 @@ inputs:
     default: site
   version:
     description: >-
-      Glyph release to install, e.g. "v0.23.0". Defaults to the latest
-      release. This action calls `glyph export --format site`, so it needs a
-      release carrying that subcommand; pin an action tag matching the Glyph
-      release you install rather than pairing an old binary with a new action.
+      Glyph release to install, e.g. "v0.24.0", or "latest" to track whatever
+      is newest. Defaults to the release this action was written against, so
+      the pair is known to work. This action calls `glyph export --format
+      site`, so anything older than v0.23.0 lacks the subcommand and fails at
+      the start of the export.
     required: false
-    default: latest
+    default: v0.23.0
   timeout-seconds:
     description: Fail the export if it has not finished after this many seconds.
     required: false
@@ -47,9 +48,12 @@ runs:
         fi
         ARCH="$(dpkg --print-architecture)"
         # An empty version (e.g. a caller forwarding absent workflow inputs)
-        # means the same as "latest"; a bare tag 404s the releases API.
+        # means the same as leaving the input alone, so it resolves to the same
+        # pinned release. Keep this literal in step with the `version` input's
+        # default above. A bare tag 404s the releases API, hence the branch.
         VERSION="${{ inputs.version }}"
-        if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
+        VERSION="${VERSION:-v0.23.0}"
+        if [ "${VERSION}" = "latest" ]; then
           API_URL="https://api.github.com/repos/hamidfzm/glyph/releases/latest"
         else
           API_URL="https://api.github.com/repos/hamidfzm/glyph/releases/tags/${VERSION}"
@@ -91,7 +95,7 @@ runs:
         VERSION_LINE="$(glyph --version 2>/dev/null || true)"
         GLYPH_VERSION="${VERSION_LINE##* }"
         if ! glyph --help 2>/dev/null | grep -q "glyph export"; then
-          echo "::error::Glyph ${GLYPH_VERSION:-(unknown version)} has no \`glyph export\` subcommand. Pin an action tag matching the Glyph release you install, or leave \`version\` at latest."
+          echo "::error::Glyph ${GLYPH_VERSION:-(unknown version)} has no \`glyph export\` subcommand, which needs v0.23.0 or newer. Leave \`version\` at its default, or set it to a release at least that new."
           exit 1
         fi
         echo "Glyph ${GLYPH_VERSION}: exporting ${WORKSPACE} to ${OUTPUT}"
