@@ -4,7 +4,7 @@ Export a folder of markdown files as a linked static website using [Glyph](https
 
 The export renders every markdown file with Glyph's viewer pipeline (GitHub Flavored Markdown, math, alerts, syntax highlighting, Mermaid diagrams as inline SVG), resolves `[[wikilinks]]` and relative links between pages, copies referenced images, and emits a shared stylesheet, cross-page navigation, and an `index.html` (your root `README.md`, or a generated page list).
 
-Under the hood it runs the Glyph CLI headless under `xvfb`, so it needs a Linux runner. It calls `glyph export <workspace> --format site --out <output>`, the CLI's current spelling, and supports one spelling only. This action's tag tracks the Glyph release it targets, so pin an action tag matching the Glyph you install; mixing an old binary with a new action fails at the start of the export with a message saying so, rather than hanging until the timeout.
+Under the hood it runs the Glyph CLI headless under `xvfb`, so it needs a Linux runner. It calls `glyph export <workspace> --format site --out <output>`, the CLI's current spelling, and supports one spelling only. `version` therefore defaults to a pinned release rather than `latest`, so the action and the binary it installs are always a pair that was tested together. Set `version` to a newer release, or to `latest`, when you want to move ahead of the default; anything older than v0.23.0 has no `glyph export` and fails at the start of the export with a message saying so, rather than hanging until the timeout.
 
 **Live demo**: [glyph-md.github.io/export-website-action](https://glyph-md.github.io/export-website-action/) is Glyph's `samples/` workspace, exported by this action's [E2E workflow](.github/workflows/e2e-samples.yml) with the released CLI and deployed to GitHub Pages.
 
@@ -23,7 +23,7 @@ Under the hood it runs the Glyph CLI headless under `xvfb`, so it needs a Linux 
 | --- | --- | --- |
 | `workspace` | (required) | Path to the markdown workspace folder to export |
 | `output` | `site` | Directory the generated site is written to |
-| `version` | `latest` | Glyph release to install, e.g. `v0.16.0` |
+| `version` | `v0.23.0` | Glyph release to install, e.g. `v0.24.0`, or `latest` for the newest |
 | `timeout-seconds` | `600` | Fail the export if it has not finished in time |
 
 ### Outputs

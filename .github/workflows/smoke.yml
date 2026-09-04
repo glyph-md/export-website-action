@@ -1,7 +1,8 @@
 name: Smoke test
 
 # Gates every change to the action with a real install + export against the
-# latest Glyph release (v0.16.0 shipped the export flag).
+# Glyph release the action pins by default (v0.23.0 shipped the export
+# subcommand). Dispatch it with a version to test any other release.
 on:
   push:
     branches: [main]
@@ -30,7 +31,9 @@ jobs:
         with:
           workspace: fixture
           output: out
-          version: ${{ inputs.version || 'latest' }}
+          # Left empty on push and pull_request, so the smoke exercises the
+          # action's pinned default. e2e-samples covers `latest` instead.
+          version: ${{ inputs.version }}
 
       - name: Verify output
         run: |
