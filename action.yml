@@ -19,10 +19,10 @@ inputs:
   version:
     description: >-
       Glyph release to install, e.g. "v0.24.0", or "latest" to track whatever
-      is newest. Defaults to the release this action was written against, so
-      the pair is known to work. This action calls `glyph export --format
-      site`, so anything older than v0.23.0 lacks the subcommand and fails at
-      the start of the export.
+      is newest. Defaults to the release this action version was smoke-tested
+      against, so the pair is known to work. This action calls `glyph export
+      --format site`, so anything older than v0.23.0 lacks the subcommand and
+      fails at the start of the export.
     required: false
     default: v0.23.0
   timeout-seconds:

@@ -2,14 +2,15 @@ name: Release
 
 # Publishes the action version that tracks a Glyph release: smoke-tests the
 # action against that release, pins it as the `version` default, tags the
-# commit with the Glyph version, publishes the release and moves `v1` to it.
+# commit with the Glyph version, moves `v1` to it and publishes the release.
 # Glyph's release workflow starts this for each new Glyph release; run it by
-# hand from the Actions tab to catch up on one it missed. Retry a failed run
-# with a new run rather than Re-run, which checks out the commit from before
-# the pin moved.
+# hand from the Actions tab, on main, to catch up on one it missed. After a
+# failure, start a new run: Re-run reuses the commit the failed run started
+# from, and stops once main has moved past it.
 #
 # Everything that writes uses RELEASE_TOKEN, a token of the account that
-# listed this action on the Marketplace. GitHub has no API for the Marketplace
+# listed this action on the Marketplace, kept in the `release` environment
+# (deployments limited to main). GitHub has no API for the Marketplace
 # checkbox and does not list a release whose author cannot pass the
 # publisher's two-factor check, which rules out GITHUB_TOKEN. A fine-grained
 # token with Contents read and write on this repository is enough.
@@ -24,33 +25,38 @@ on:
 permissions:
   contents: read
 
-# Two runs would race for the pin commit and the v1 tag.
+# One release at a time. A run queued behind another stops at the release
+# job, because main has moved since it started.
 concurrency:
   group: release
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    environment: release
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Check the version and the token
         env:
           VERSION: ${{ inputs.version }}
-          HAS_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
-          GH_TOKEN: ${{ github.token }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           set -euo pipefail
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Run this from main, not ${GITHUB_REF}: the release pushes the commit it tested to main."
+            exit 1
+          fi
           if ! [[ "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::version must be a Glyph release tag like v0.26.0, got '${VERSION}'."
             exit 1
           fi
-          if [ "${HAS_TOKEN}" != "true" ]; then
-            echo "::error::The RELEASE_TOKEN secret is missing. Add a token of the account that publishes this action to the Marketplace, with Contents read and write on this repository."
+          if [ -z "${RELEASE_TOKEN}" ] || ! GH_TOKEN="${RELEASE_TOKEN}" gh api "repos/${GITHUB_REPOSITORY}" --silent; then
+            echo "::error::RELEASE_TOKEN is missing from the release environment or no longer valid. Add a token of the account that publishes this action to the Marketplace, with Contents read and write on this repository."
             exit 1
           fi
-          if gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            echo "::error::${VERSION} is already released."
+          if git ls-remote --exit-code --tags origin "refs/tags/${VERSION}" >/dev/null; then
+            echo "::error::Tag ${VERSION} already exists, so it is released already, or a stray tag to delete first."
             exit 1
           fi
           PINNED="$(yq -r '.inputs.version.default' action.yml)"
@@ -69,6 +75,7 @@ jobs:
   release:
     needs: smoke
     runs-on: ubuntu-latest
+    environment: release
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -79,6 +86,11 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          MAIN="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "${MAIN}" != "${GITHUB_SHA}" ]; then
+            echo "::error::main is at ${MAIN}, but this run tested ${GITHUB_SHA}; start a new run."
+            exit 1
+          fi
           PINNED="$(yq -r '.inputs.version.default' action.yml)"
           if [ "${PINNED}" = "${VERSION}" ]; then
             echo "action.yml already pins ${VERSION}."
@@ -87,7 +99,7 @@ jobs:
           # The pin has three copies: the input's default, the fallback for an
           # empty input, and the README's inputs table. The minimum version the
           # docs mention is a different number and stays.
-          PINNED_RE="${PINNED//./\\.}"
+          PINNED_RE="${PINNED//./[.]}"
           sed -i -e "s/^\(    default: \)${PINNED_RE}$/\1${VERSION}/" \
             -e "s/\${VERSION:-${PINNED_RE}}/\${VERSION:-${VERSION}}/" action.yml
           sed -i "s/^| \`version\` | \`${PINNED_RE}\` |/| \`version\` | \`${VERSION}\` |/" README.md
@@ -103,18 +115,19 @@ jobs:
           git commit -am "chore: track Glyph ${VERSION}"
           git push origin HEAD:main
 
-      - name: Publish the release and move v1
+      - name: Move v1 and publish the release
         env:
           VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           SHA="$(git rev-parse HEAD)"
+          # v1 is the alias most callers use, so it moves on purpose. It moves
+          # before the release exists, so a run that fails in between has not
+          # made the version tag yet, and a new run finishes the job.
+          git tag -f v1 "${SHA}"
+          git push -f origin refs/tags/v1
           gh release create "${VERSION}" --repo "${GITHUB_REPOSITORY}" --target "${SHA}" \
             --title "${VERSION}" --generate-notes \
             --notes "Tracks Glyph [${VERSION}](https://github.com/hamidfzm/glyph/releases/tag/${VERSION}), and installs that release by default."
-          # v1 is the alias most callers use, so it moves on purpose; the
-          # release tag stays put for callers who want the pair fixed.
-          git tag -f v1 "${SHA}"
-          git push -f origin refs/tags/v1
           echo "Released ${VERSION} at ${SHA}; v1 points there now."
