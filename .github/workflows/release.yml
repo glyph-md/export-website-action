@@ -1,0 +1,120 @@
+name: Release
+
+# Publishes the action version that tracks a Glyph release: smoke-tests the
+# action against that release, pins it as the `version` default, tags the
+# commit with the Glyph version, publishes the release and moves `v1` to it.
+# Glyph's release workflow starts this for each new Glyph release; run it by
+# hand from the Actions tab to catch up on one it missed. Retry a failed run
+# with a new run rather than Re-run, which checks out the commit from before
+# the pin moved.
+#
+# Everything that writes uses RELEASE_TOKEN, a token of the account that
+# listed this action on the Marketplace. GitHub has no API for the Marketplace
+# checkbox and does not list a release whose author cannot pass the
+# publisher's two-factor check, which rules out GITHUB_TOKEN. A fine-grained
+# token with Contents read and write on this repository is enough.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Glyph release to track, e.g. v0.26.0
+        required: true
+
+permissions:
+  contents: read
+
+# Two runs would race for the pin commit and the v1 tag.
+concurrency:
+  group: release
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Check the version and the token
+        env:
+          VERSION: ${{ inputs.version }}
+          HAS_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! [[ "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must be a Glyph release tag like v0.26.0, got '${VERSION}'."
+            exit 1
+          fi
+          if [ "${HAS_TOKEN}" != "true" ]; then
+            echo "::error::The RELEASE_TOKEN secret is missing. Add a token of the account that publishes this action to the Marketplace, with Contents read and write on this repository."
+            exit 1
+          fi
+          if gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "::error::${VERSION} is already released."
+            exit 1
+          fi
+          PINNED="$(yq -r '.inputs.version.default' action.yml)"
+          NEWEST="$(printf '%s\n%s\n' "${PINNED}" "${VERSION}" | sort -V | tail -n 1)"
+          if [ "${NEWEST}" != "${VERSION}" ]; then
+            echo "::error::action.yml already pins ${PINNED}, which is newer than ${VERSION}, and releasing ${VERSION} would move v1 back."
+            exit 1
+          fi
+
+  smoke:
+    needs: check
+    uses: ./.github/workflows/smoke.yml
+    with:
+      version: ${{ inputs.version }}
+
+  release:
+    needs: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Pin the release as the default
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          PINNED="$(yq -r '.inputs.version.default' action.yml)"
+          if [ "${PINNED}" = "${VERSION}" ]; then
+            echo "action.yml already pins ${VERSION}."
+            exit 0
+          fi
+          # The pin has three copies: the input's default, the fallback for an
+          # empty input, and the README's inputs table. The minimum version the
+          # docs mention is a different number and stays.
+          PINNED_RE="${PINNED//./\\.}"
+          sed -i -e "s/^\(    default: \)${PINNED_RE}$/\1${VERSION}/" \
+            -e "s/\${VERSION:-${PINNED_RE}}/\${VERSION:-${VERSION}}/" action.yml
+          sed -i "s/^| \`version\` | \`${PINNED_RE}\` |/| \`version\` | \`${VERSION}\` |/" README.md
+          if [ "$(yq -r '.inputs.version.default' action.yml)" != "${VERSION}" ] \
+            || ! grep -qF "\${VERSION:-${VERSION}}" action.yml \
+            || ! grep -qF "| \`version\` | \`${VERSION}\` |" README.md; then
+            git diff
+            echo "::error::Could not move every copy of the pin from ${PINNED} to ${VERSION}; update this step to match action.yml and README.md."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: track Glyph ${VERSION}"
+          git push origin HEAD:main
+
+      - name: Publish the release and move v1
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          gh release create "${VERSION}" --repo "${GITHUB_REPOSITORY}" --target "${SHA}" \
+            --title "${VERSION}" --generate-notes \
+            --notes "Tracks Glyph [${VERSION}](https://github.com/hamidfzm/glyph/releases/tag/${VERSION}), and installs that release by default."
+          # v1 is the alias most callers use, so it moves on purpose; the
+          # release tag stays put for callers who want the pair fixed.
+          git tag -f v1 "${SHA}"
+          git push -f origin refs/tags/v1
+          echo "Released ${VERSION} at ${SHA}; v1 points there now."

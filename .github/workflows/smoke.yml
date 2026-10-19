@@ -1,8 +1,9 @@
 name: Smoke test
 
 # Gates every change to the action with a real install + export against the
-# Glyph release the action pins by default (v0.23.0 shipped the export
-# subcommand). Dispatch it with a version to test any other release.
+# Glyph release the action pins by default. Dispatch it with a version to test
+# any other release; the release workflow calls it with the one it is about to
+# pin.
 on:
   push:
     branches: [main]
@@ -12,6 +13,11 @@ on:
       version:
         description: Glyph release to test against
         default: latest
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
 
 jobs:
   export:
