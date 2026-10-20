@@ -22,6 +22,12 @@ jobs:
       # actionlint covers workflows only; sanity-check the composite action's
       # metadata separately.
       - name: Validate action.yml
+        shell: python3 {0}
         run: |
-          set -euo pipefail
-          python3 -c "import yaml, sys; a = yaml.safe_load(open('action.yml')); assert a['runs']['using'] == 'composite', 'not a composite action'; assert set(a['inputs']) == {'workspace', 'output', 'version', 'timeout-seconds'}, a['inputs'].keys(); print('action.yml OK')"
+          import yaml
+          a = yaml.safe_load(open('action.yml'))
+          assert a['runs']['using'] == 'composite', 'not a composite action'
+          assert set(a['inputs']) == {'workspace', 'output', 'version', 'timeout-seconds'}, a['inputs'].keys()
+          # The Marketplace will not list a release whose description is longer.
+          assert len(a['description']) < 125, f"description has {len(a['description'])} characters; the Marketplace needs fewer than 125"
+          print('action.yml OK')

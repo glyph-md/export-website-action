@@ -1,8 +1,7 @@
 name: "Export Glyph Workspace as Website"
 description: >-
-  Install Glyph and export a folder of markdown files as a linked static
-  website (one HTML page per file, wikilinks resolved, images copied, Mermaid
-  rendered). Ideal for publishing a notes workspace to GitHub Pages.
+  Export a folder of markdown files as a linked static website with Glyph,
+  ready to publish on GitHub Pages.
 author: glyph-md
 branding:
   icon: book-open
