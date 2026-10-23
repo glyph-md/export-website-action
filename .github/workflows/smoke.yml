@@ -21,7 +21,13 @@ on:
 
 jobs:
   export:
-    runs-on: ubuntu-latest
+    # Callers run the action on ubuntu-latest, which moves from 24.04 to 26.04
+    # over several weeks, so every change is proven on both images.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
 
