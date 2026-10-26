@@ -140,7 +140,7 @@ jobs:
             --notes "Tracks Glyph [${VERSION}](https://github.com/hamidfzm/glyph/releases/tag/${VERSION}), and installs that release by default."
           echo "Released ${VERSION} at ${SHA}; v1 points there now."
           EDIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/edit/${VERSION}"
-          echo "::notice title=List ${VERSION} on the Marketplace::Not listed until ticked by hand: open ${EDIT_URL}, tick \"Publish this Action to the GitHub Marketplace\" and save."
+          echo "Not on the Marketplace until ticked by hand: open ${EDIT_URL}, tick \"Publish this Action to the GitHub Marketplace\" and save."
           {
             echo "## List ${VERSION} on the Marketplace"
             echo
