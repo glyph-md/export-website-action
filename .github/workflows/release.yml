@@ -10,10 +10,16 @@ name: Release
 #
 # Everything that writes uses RELEASE_TOKEN, a token of the account that
 # listed this action on the Marketplace, kept in the `release` environment
-# (deployments limited to main). GitHub has no API for the Marketplace
-# checkbox and does not list a release whose author cannot pass the
-# publisher's two-factor check, which rules out GITHUB_TOKEN. A fine-grained
-# token with Contents read and write on this repository is enough.
+# (deployments limited to main). A fine-grained token with Contents read and
+# write on this repository is enough.
+#
+# The release this publishes is not on the Marketplace yet. The API that
+# creates releases has no Marketplace option, so a release made here stays
+# off the listing whichever token makes it, until the publisher ticks
+# "Publish this Action to the GitHub Marketplace" on its edit page and saves.
+# The run's summary links that page. The token is still the publisher's
+# because GitHub does not list a release whose author cannot pass the
+# publisher's two-factor check, which rules out GITHUB_TOKEN.
 
 on:
   workflow_dispatch:
@@ -133,3 +139,10 @@ jobs:
             --title "${VERSION}" --generate-notes \
             --notes "Tracks Glyph [${VERSION}](https://github.com/hamidfzm/glyph/releases/tag/${VERSION}), and installs that release by default."
           echo "Released ${VERSION} at ${SHA}; v1 points there now."
+          EDIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/edit/${VERSION}"
+          echo "::notice title=List ${VERSION} on the Marketplace::Not listed until ticked by hand: open ${EDIT_URL}, tick \"Publish this Action to the GitHub Marketplace\" and save."
+          {
+            echo "## List ${VERSION} on the Marketplace"
+            echo
+            echo "GitHub has no API for the Marketplace checkbox, so this release is not listed yet. Open [its edit page](${EDIT_URL}), tick **Publish this Action to the GitHub Marketplace** and click **Update release**."
+          } >> "${GITHUB_STEP_SUMMARY}"
