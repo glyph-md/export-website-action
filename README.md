@@ -23,7 +23,7 @@ Under the hood it runs the Glyph CLI headless under `xvfb`, so it needs a Linux 
 | --- | --- | --- |
 | `workspace` | (required) | Path to the markdown workspace folder to export |
 | `output` | `site` | Directory the generated site is written to |
-| `version` | `v0.27.1` | Glyph release to install, e.g. `v0.24.0`, or `latest` for the newest |
+| `version` | `v0.28.0` | Glyph release to install, e.g. `v0.24.0`, or `latest` for the newest |
 | `timeout-seconds` | `600` | Fail the export if it has not finished in time |
 
 ### Versioning
